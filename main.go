@@ -12,7 +12,7 @@ import (
 func main() {
 	var httpport = ""
 	kubeconfigPath := flag.String("kubeconfig", filepath.Join(homeDir(), ".kube", "config"), "kubeconfig绝对路径")
-	context := flag.String("context", "", "集群context名称")
+	context := flag.String("context", "kubernetes-admin@kubernetes", "集群context名称")
 	port := flag.String("port", "", "监听端口号")
 	flag.Parse()
 
@@ -41,4 +41,3 @@ func homeDir() string {
 	}
 	return os.Getenv("USERPROFILE") // windows
 }
-
