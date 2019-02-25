@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>web控制台</title>
+    <link rel="shortcut icon" href="/static/img/favicon.png">
+    <link rel="stylesheet" href="/static/css/normalize.min.css">
+    <link rel="stylesheet" href="/static/css/xterm.min.css">
+    <link rel="stylesheet" href="/static/css/fullscreen.min.css"/>
+    <script src="/static/js/fullscreen.min.js"></script>
+    <script src="/static/js/fit.min.js"></script>
+    <script src="/static/js/xterm.min.js"></script>
+    <script src="/static/js/sockjs.min.js"></script>
+</head>
+<body>
+    <div id="terminal" style="height: 100vh;"></div>
+    <script>
+        let term = null
+        let socket = null
+        let param = {}
+
+        let cols = null
+        let rows = null
+
+        run()
+
+        function run() {
+            param = {
+                namespace: getUrlParam('namespace'),
+                pod: getUrlParam('pod'),
+                container: '' // todo
+            }
+
+            if (!param.namespace || !param.pod) {
+                alert('缺少必要数据');
+                return;
+            }
+
+            document.title = `${param.pod}@${param.namespace}`
+
+            initTerminal()
+        }
+
+        function initTerminal() {
+            let terminalDom = document.getElementById('terminal')
+            rows = parseInt(terminalDom.clientHeight / 17)
+            cols = parseInt(terminalDom.clientWidth / 9)
+
+            Terminal.applyAddon(fullscreen);
+            Terminal.applyAddon(fit);
+
+            term = new Terminal({
+                cursorBlink: true,
+                scrollback: 100,
+                tabStopWidth: 4,
+                rows: rows,
+                cols: cols
+            });
+            // 在一行持续输入，竟然会从头开始循环~~!，原来和调用顺序有关系
+            term.open(document.getElementById('terminal'));
+            term.toggleFullScreen(); // 只修改了样式
+            setTimeout(function () {
+                term.fit()
+                term.focus()
+                wsConnect()
+            })
+        }
+
+        function wsConnect() {
+            const wsUrl = `${location.origin}/terminal/ws`
+            const url = `${wsUrl}?namespace=${param.namespace}&pod=${param.pod}&container=${param.container}`
+
+            socket = new SockJS(url)
+            term.on('data', function (data) {
+                if (socket.readyState === 1) {
+                    socket.send(data)
+                }
+            });
+            socket.onmessage = function (e) {
+                term.write(e.data)
+            };
+            socket.onclose = function () {};
+            socket.onopen = function () {
+                console.log('open')
+                resize(socket)
+            }
+        }
+
+        function resize() {
+            term.resize(cols, rows)
+            socket.send('{"cols":' + cols + ',"rows":' + rows + '}')
+        }
+
+        function getUrlParam(name) {
+            let reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+            let r = window.location.search.substr(1).match(reg);
+            if (r != null) return unescape(r[2]);
+            return null;
+        }
+
+        window.onbeforeunload = function () {
+            console.log('window close')
+            socket.close()
+        }
+
+        function handleResize () {
+            let terminalDom = document.getElementById('terminal')
+            let rows = parseInt(terminalDom.clientHeight / 17)
+            let cols = parseInt(terminalDom.clientWidth / 9)
+            term.resize(cols, rows)
+            socket.send('{"cols":' + cols + ',"rows":' + rows + '}')
+        }
+
+        function debounce (fn, delay) {
+            let timer = null
+            return function () {
+                if (timer !== null) {
+                    clearTimeout(timer)
+                }
+                timer = setTimeout(fn, delay)
+            }
+        }
+
+        window.onresize = debounce(handleResize, 1000)
+    </script>
+</body>
+</html>
