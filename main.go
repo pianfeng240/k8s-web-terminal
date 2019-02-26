@@ -27,7 +27,7 @@ func main() {
 	} else {
 		httpport = beego.AppConfig.String("httpport")
 	}
-	beego.Informational("端口号", *port)
+	beego.Informational("端口号", httpport)
 
 	beego.AppConfig.Set("kubeconfig", *kubeconfigPath)
 	beego.AppConfig.Set("context", *context)

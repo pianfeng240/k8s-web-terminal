@@ -22,7 +22,9 @@
         let cols = null
         let rows = null
 
-        run()
+        window.onload = function () {
+            run()
+        }
 
         function run() {
             param = {
@@ -41,10 +43,14 @@
             initTerminal()
         }
 
-        function initTerminal() {
-            let terminalDom = document.getElementById('terminal')
+        function calTerminalSize() {
+            const terminalDom = document.getElementById('terminal')
             rows = parseInt(terminalDom.clientHeight / 17)
             cols = parseInt(terminalDom.clientWidth / 9)
+        }
+
+        function initTerminal() {
+            calTerminalSize()
 
             Terminal.applyAddon(fullscreen);
             Terminal.applyAddon(fit);
@@ -53,15 +59,13 @@
                 cursorBlink: true,
                 scrollback: 100,
                 tabStopWidth: 4,
-                rows: rows,
-                cols: cols
             });
+            console.log('初始terminal大小：', `rows:${rows},cols:${cols}`)
             // 在一行持续输入，竟然会从头开始循环~~!，原来和调用顺序有关系
             term.open(document.getElementById('terminal'));
             term.toggleFullScreen(); // 只修改了样式
+            term.fit()
             setTimeout(function () {
-                term.fit()
-                term.focus()
                 wsConnect()
             })
         }
@@ -82,13 +86,10 @@
             socket.onclose = function () {};
             socket.onopen = function () {
                 console.log('open')
-                resize(socket)
+                // term.resize(cols, rows)
+                term.focus()
+                socket.send('{"cols":' + cols + ',"rows":' + rows + '}')
             }
-        }
-
-        function resize() {
-            term.resize(cols, rows)
-            socket.send('{"cols":' + cols + ',"rows":' + rows + '}')
         }
 
         function getUrlParam(name) {
@@ -104,9 +105,8 @@
         }
 
         function handleResize () {
-            let terminalDom = document.getElementById('terminal')
-            let rows = parseInt(terminalDom.clientHeight / 17)
-            let cols = parseInt(terminalDom.clientWidth / 9)
+            calTerminalSize()
+            console.log('调整terminal大小', `rows:${rows},cols:${cols}`)
             term.resize(cols, rows)
             socket.send('{"cols":' + cols + ',"rows":' + rows + '}')
         }
