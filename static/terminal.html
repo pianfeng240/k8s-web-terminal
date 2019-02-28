@@ -4,92 +4,66 @@
     <meta charset="UTF-8">
     <title>web控制台</title>
     <link rel="shortcut icon" href="/static/img/favicon.png">
-    <link rel="stylesheet" href="/static/css/normalize.min.css">
     <link rel="stylesheet" href="/static/css/xterm.min.css">
-    <link rel="stylesheet" href="/static/css/fullscreen.min.css"/>
-    <script src="/static/js/fullscreen.min.js"></script>
     <script src="/static/js/fit.min.js"></script>
     <script src="/static/js/xterm.min.js"></script>
     <script src="/static/js/sockjs.min.js"></script>
+    <style>
+        body {
+            margin: 0px;
+        }
+        #terminal {
+            height: 100vh;
+            width: 100vw;
+        }
+    </style>
 </head>
 <body>
-    <div id="terminal" style="height: 100vh;"></div>
+    <div id="terminal"></div>
     <script>
-        let term = null
-        let socket = null
-        let param = {}
-
-        let cols = null
-        let rows = null
-
-        window.onload = function () {
-            run()
+        const param = {
+            namespace: getUrlParam('namespace'),
+            pod: getUrlParam('pod'),
+            container: '' // todo
         }
+        document.title = `${param.pod}@${param.namespace}`
 
-        function run() {
-            param = {
-                namespace: getUrlParam('namespace'),
-                pod: getUrlParam('pod'),
-                container: '' // todo
-            }
+        const wsUrl = `${location.origin}/terminal/ws`
+        const url = `${wsUrl}?namespace=${param.namespace}&pod=${param.pod}&container=${param.container}`
 
-            if (!param.namespace || !param.pod) {
-                alert('缺少必要数据');
-                return;
-            }
-
-            document.title = `${param.pod}@${param.namespace}`
-
-            initTerminal()
-        }
-
-        function calTerminalSize() {
-            const terminalDom = document.getElementById('terminal')
-            rows = parseInt(terminalDom.clientHeight / 17)
-            cols = parseInt(terminalDom.clientWidth / 9)
-        }
-
-        function initTerminal() {
-            calTerminalSize()
-
-            Terminal.applyAddon(fullscreen);
-            Terminal.applyAddon(fit);
-
-            term = new Terminal({
+        let socket = new SockJS(url)
+        socket.onopen = function () {
+            Terminal.applyAddon(fit)
+            const term = new Terminal({
                 cursorBlink: true,
-                scrollback: 100,
-                tabStopWidth: 4,
-            });
-            console.log('初始terminal大小：', `rows:${rows},cols:${cols}`)
-            // 在一行持续输入，竟然会从头开始循环~~!，原来和调用顺序有关系
-            term.open(document.getElementById('terminal'));
-            term.toggleFullScreen(); // 只修改了样式
-            term.fit()
-            setTimeout(function () {
-                wsConnect()
+                scrollback: 100
             })
-        }
+            term.open(document.getElementById('terminal'))
+            term.setOption('fontSize', 14)
 
-        function wsConnect() {
-            const wsUrl = `${location.origin}/terminal/ws`
-            const url = `${wsUrl}?namespace=${param.namespace}&pod=${param.pod}&container=${param.container}`
+            function resize() {
+                term.fit()
+                socket.send('{"cols":' + term.cols + ',"rows":' + term.rows + '}')
+            }
+            window.onresize = debounce(resize, 100)
+            resize()
+            term.focus()
 
-            socket = new SockJS(url)
             term.on('data', function (data) {
-                if (socket.readyState === 1) {
-                    socket.send(data)
-                }
-            });
+                socket.send(data)
+            })
             socket.onmessage = function (e) {
                 term.write(e.data)
-            };
-            socket.onclose = function () {};
-            socket.onopen = function () {
-                console.log('open')
-                // term.resize(cols, rows)
-                term.focus()
-                socket.send('{"cols":' + cols + ',"rows":' + rows + '}')
             }
+            socket.onclose = function () {
+                console.log('close')
+            }
+
+            window.onbeforeunload = function () {
+                console.log('window close')
+                socket.close()
+            }
+
         }
 
         function getUrlParam(name) {
@@ -97,18 +71,6 @@
             let r = window.location.search.substr(1).match(reg);
             if (r != null) return unescape(r[2]);
             return null;
-        }
-
-        window.onbeforeunload = function () {
-            console.log('window close')
-            socket.close()
-        }
-
-        function handleResize () {
-            calTerminalSize()
-            console.log('调整terminal大小', `rows:${rows},cols:${cols}`)
-            term.resize(cols, rows)
-            socket.send('{"cols":' + cols + ',"rows":' + rows + '}')
         }
 
         function debounce (fn, delay) {
@@ -121,7 +83,6 @@
             }
         }
 
-        window.onresize = debounce(handleResize, 1000)
     </script>
 </body>
 </html>

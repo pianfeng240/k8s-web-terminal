@@ -96,11 +96,11 @@ func Handler(t *TerminalSockjs, cmd string) error {
 		req.VersionedParams(
 			&v1.PodExecOptions{
 				//Container: t.container,
-				Command:   []string{},
-				Stdin:     true,
-				Stdout:    true,
-				Stderr:    true,
-				TTY:       true,
+				Command: []string{},
+				Stdin:   true,
+				Stdout:  true,
+				Stderr:  true,
+				TTY:     true,
 			},
 			scheme.ParameterCodec,
 		)
@@ -130,6 +130,7 @@ func (self TerminalSockjs) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	context := beego.AppConfig.String("context")
 	namespace := r.FormValue("namespace")
 	pod := r.FormValue("pod")
+	cmd := "/bin/bash"
 	//container := r.FormValue("container")
 	Sockjshandler := func(session sockjs.Session) {
 		t := &TerminalSockjs{
@@ -140,9 +141,9 @@ func (self TerminalSockjs) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			pod,
 			//container,
 		}
-		if err := Handler(t, "/bin/bash"); err != nil {
+		if err := Handler(t, cmd); err != nil {
 			beego.Error(err)
-			beego.Error(Handler(t, "/bin/bash"))
+			beego.Error(Handler(t, cmd))
 		}
 	}
 	// todo: 优雅处理客户端断开连接
