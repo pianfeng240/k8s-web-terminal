@@ -1,6 +1,10 @@
 ## web-terminal
 
-参考 https://github.com/du2016/web-terminal-in-go
+参考：
+
+https://github.com/du2016/web-terminal-in-go
+
+https://github.com/mthenw/frontail/blob/master/web/index.html
 
 基于go1.11重写，使用module特性
 
@@ -23,7 +27,9 @@ mac: http://res-xb.oss-cn-beijing.aliyuncs.com/github/k8s-web-terminal.darwin.ta
 -port=9600 // 监听端口号，默认9600
 
 
-#### 访问web shell
+#### web 访问shell
 
 http://127.0.0.1:9600/static/terminal.html?namespace=[namespace]&pod=[pod name]
 
+#### web 查看容器log
+http://127.0.0.1:9600/static/logs.html?namespace=[namespace]&pod=[pod name]paths=[logpath]

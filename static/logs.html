@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>日志查看</title>
+    <link rel="shortcut icon" href="/static/img/favicon.png">
+    <link rel="stylesheet" href="/static/css/xterm.min.css">
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <script src="/static/js/fit.min.js"></script>
+    <script src="/static/js/xterm.min.js"></script>
+    <script src="/static/js/sockjs.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+            font-size: 14px;
+            line-height: 1.42857143;
+            color: #333;
+            background-color: #fff;
+        }
+        #terminal {
+            display: none;
+        }
+        #log {
+            font-size: .85em;
+            margin-top: 3em;
+        }
+        .line {
+            color: #333
+        }
+        .line-selected {
+            background-color: #ffb2b0;
+        }
+        .inner-line {
+            padding: 0 15px;
+            margin: 0px 0px 0px 84pt;
+            text-indent: -84pt;
+            white-space: pre-wrap;
+            word-break: break-all;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+<div class="navbar navbar-default navbar-fixed-top navbar-inverse">
+    <div class="container">
+        <form class="navbar-form navbar-left" role="search">
+            <div class="form-group">
+                <input type="text" id="input_search" class="form-control" placeholder="Search">
+            </div>
+            <button type="button" onclick="search()" class="btn btn-default">过滤</button>
+        </form>
+    </div>
+</div>
+<div id="terminal"></div>
+<div>
+    <input type="text" placeholder="filter" onkeypress="search()">
+</div>
+<div id="log"></div>
+<script>
+    class Logger {
+        constructor({dom}) {
+            this.dom = dom
+            this.linebuf = ''
+            this._search = ''
+        }
+
+        get filterValue() {
+            return this._search
+        }
+
+        set filterValue(text) {
+            this._search = text
+        }
+
+        write(data) {
+            if (!data) return
+
+            const firstEnterIndex = data.indexOf('\n')
+            const lastIsEnterIndex = data.lastIndexOf('\n') === data.length
+
+            // 没有换行符认为是上一行的延续
+            if (firstEnterIndex === -1) {
+                this.linebuf += data
+                return
+            }
+
+            // 第一个换行符前的数据属于上一行
+            this.linebuf += data.substring(0, firstEnterIndex)
+            this.writeln(this.linebuf)
+            this.linebuf = ''
+
+
+            let lines = data.substring(firstEnterIndex + 1).split('\n')
+            // console.log(1, lines.length)
+            for (let i = 0, len = lines.length; i < len; i++) {
+                // 末尾不是换行符，需要加到buf中，等后面的数据
+                if (i === len - 1 && !lastIsEnterIndex) {
+                    this.linebuf = lines[i]
+                    continue
+                }
+                this.writeln(lines[i])
+            }
+        }
+
+        writeln(data) {
+            if (!data || data.charCodeAt(0) === 13) return
+
+            // java的异常信息，数据会以tab开头,把信息追加到上一条日志中
+            if (!this.linebuf && data.charCodeAt(0) === 9) {
+                let inner = document.createElement('p')
+                inner.classList.add('inner-line')
+                inner.innerHTML = data
+                this.dom.lastChild('line').appendChild(inner)
+                return
+            }
+
+            let line = document.createElement('div')
+            line.classList.add('line')
+            let inner = document.createElement('p')
+            inner.classList.add('inner-line')
+            inner.innerHTML = data
+            line.appendChild(inner)
+            this.filterElement(line)
+            this.dom.appendChild(line)
+        }
+
+        search() {
+            let lines = this.dom.querySelectorAll('.line, .line-selected')
+            let i = lines.length
+            while(i--) {
+                this.filterElement(lines[i])
+            }
+        }
+
+        filterElement(ele) {
+            let reg = new RegExp(this.filterValue, 'i')
+
+            try {
+                let res = reg.test(ele.textContent)
+                ele.style.display = res ? '' : 'none'
+            } catch (e) {
+                console.error(e)
+            }
+        }
+    }
+</script>
+<script>
+    const param = {
+        namespace: getUrlParam('namespace'),
+        pod: getUrlParam('pod'),
+        paths: getUrlParam('paths'),
+        container: '' // todo
+    }
+    document.title = `${param.pod}@${param.namespace}`
+
+    var logEl = document.getElementById('log')
+
+    logEl.addEventListener('click', function (e) {
+        let lineDom = null
+        // inner-line元素
+        if (e.srcElement.className === 'inner-line') {
+            lineDom = e.srcElement.parentNode
+        }
+        // line元素
+        if (e.srcElement.className === 'line' || e.srcElement.className === 'line-selected') {
+            lineDom = e.srcElement
+        }
+
+        lineDom.className = lineDom.className === 'line' ? 'line-selected' : 'line'
+    }, true)
+
+    var log = new Logger({
+        dom: document.getElementById('log')
+    })
+
+
+    const wsUrl = `${location.origin}/terminal/ws`
+    const url = `${wsUrl}?namespace=${param.namespace}&pod=${param.pod}&container=${param.container}`
+    const cmd = `tail -f -n 10 ${param.paths} \n`
+
+    let socket = new SockJS(url)
+    socket.onopen = function () {
+        Terminal.applyAddon(fit)
+        const term = new Terminal({
+            disableStdin: true
+        })
+        term.open(document.getElementById('terminal'))
+        term.setOption('fontSize', 14)
+
+        function resize() {
+            term.fit()
+            socket.send('{"cols":' + term.cols + ',"rows":' + term.rows + '}')
+        }
+        window.onresize = debounce(resize, 100)
+        resize()
+        term.focus()
+        socket.send(cmd)
+
+        socket.onmessage = function (e) {
+            if (window.DEBUG) {
+                console.log(e.data)
+            }
+            log.write(e.data)
+            term.write(e.data)
+        }
+        window.onbeforeunload = function () {
+            console.log('window close')
+            socket.close()
+        }
+    }
+
+    function getUrlParam(name) {
+        let reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+        let r = window.location.search.substr(1).match(reg);
+        if (r != null) return unescape(r[2]);
+        return null;
+    }
+
+    function debounce (fn, delay) {
+        let timer = null
+        return function () {
+            if (timer !== null) {
+                clearTimeout(timer)
+            }
+            timer = setTimeout(fn, delay)
+        }
+    }
+
+    function search() {
+        let text = document.getElementById('input_search').value
+        log.filterValue = text
+        log.search()
+    }
+</script>
+</body>
+</html>
