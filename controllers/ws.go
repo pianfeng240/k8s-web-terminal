@@ -142,10 +142,9 @@ func (self TerminalSockjs) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			//container,
 		}
 		if err := Handler(t, cmd); err != nil {
+			_ := t.conn.Send(fmt.Sprintf("%s", err))
 			beego.Error(err)
-			beego.Error(Handler(t, cmd))
 		}
 	}
-	// todo: 优雅处理客户端断开连接
 	sockjs.NewHandler("/terminal/ws", sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
 }
