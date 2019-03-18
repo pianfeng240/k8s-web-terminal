@@ -142,7 +142,7 @@ func (self TerminalSockjs) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			//container,
 		}
 		if err := Handler(t, cmd); err != nil {
-			_ := t.conn.Send(fmt.Sprintf("%s", err))
+			t.conn.Send(fmt.Sprintf("%s", err))
 			beego.Error(err)
 		}
 	}
