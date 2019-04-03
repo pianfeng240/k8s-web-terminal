@@ -12,7 +12,6 @@ https://github.com/mthenw/frontail/blob/master/web/index.html
 
 linux: http://res-xb.oss-cn-beijing.aliyuncs.com/github/k8s-web-terminal.tar.gz
 
-mac: http://res-xb.oss-cn-beijing.aliyuncs.com/github/k8s-web-terminal.darwin.tar.gz
 
 #### 启动项目
 
