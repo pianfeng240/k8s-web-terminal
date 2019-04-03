@@ -24,6 +24,7 @@
         #log {
             font-size: .85em;
             margin-top: 3em;
+            padding-bottom: 20px;
         }
         .line {
             color: #333
@@ -59,10 +60,12 @@
 <div id="log"></div>
 <script>
     class Logger {
-        constructor({dom}) {
+        constructor({dom, maxLines}) {
             this.dom = dom
             this.linebuf = ''
             this._search = ''
+            this.maxLines = maxLines
+            this.lines = 0
         }
 
         get filterValue() {
@@ -111,7 +114,8 @@
                 let inner = document.createElement('p')
                 inner.classList.add('inner-line')
                 inner.innerHTML = data
-                this.dom.lastChild('line').appendChild(inner)
+                this.dom.lastChild.appendChild(inner)
+                this.scrollBottom()
                 return
             }
 
@@ -123,6 +127,22 @@
             line.appendChild(inner)
             this.filterElement(line)
             this.dom.appendChild(line)
+            this.lines += 1
+            this.removeOldestLine()
+            this.scrollBottom()
+        }
+
+        removeOldestLine() {
+            if (!this.maxLines) return
+            if (this.lines <= this.maxLines) return
+
+            const oldest = this.dom.firstChild
+            this.dom.removeChild(oldest)
+            this.lines -= 1
+        }
+
+        scrollBottom() {
+            document.documentElement.scrollTop = document.body.scrollTop = document.body.scrollHeight
         }
 
         search() {
@@ -170,8 +190,9 @@
         lineDom.className = lineDom.className === 'line' ? 'line-selected' : 'line'
     }, true)
 
-    var log = new Logger({
-        dom: document.getElementById('log')
+    const log = new Logger({
+        dom: document.getElementById('log'),
+        maxLines: getUrlParam('maxLines') || 1000
     })
 
 
