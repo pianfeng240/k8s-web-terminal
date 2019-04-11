@@ -142,8 +142,12 @@ func (self TerminalSockjs) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			//container,
 		}
 		if err := Handler(t, cmd); err != nil {
-			t.conn.Send(fmt.Sprintf("%s", err))
 			beego.Error(err)
+			err := t.conn.Send(fmt.Sprintf("%s", err) + "\r\n")
+			if err != nil {
+				beego.Error(err)
+			}
+
 		}
 	}
 	sockjs.NewHandler("/terminal/ws", sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
