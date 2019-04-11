@@ -10,7 +10,7 @@
     <script src="/static/js/sockjs.min.js"></script>
     <style>
         body {
-            margin: 0px;
+            margin: 0;
         }
         #terminal {
             height: 100vh;
@@ -26,17 +26,20 @@
             pod: getUrlParam('pod'),
             container: '' // todo
         }
+        const scrollBack = getUrlParam('scrollBack') || 1000
+
         document.title = `${param.pod}@${param.namespace}`
 
         const wsUrl = `${location.origin}/terminal/ws`
         const url = `${wsUrl}?namespace=${param.namespace}&pod=${param.pod}&container=${param.container}`
 
         let socket = new SockJS(url)
+
         socket.onopen = function () {
             Terminal.applyAddon(fit)
             const term = new Terminal({
                 cursorBlink: true,
-                scrollback: 100
+                scrollback: scrollBack
             })
             term.open(document.getElementById('terminal'))
             term.setOption('fontSize', 14)
