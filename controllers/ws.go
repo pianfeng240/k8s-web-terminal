@@ -133,6 +133,7 @@ func (self TerminalSockjs) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cmd := "/bin/bash"
 	//container := r.FormValue("container")
 	Sockjshandler := func(session sockjs.Session) {
+		beego.Info(1, session.ID())
 		t := &TerminalSockjs{
 			session,
 			make(chan *remotecommand.TerminalSize),
@@ -142,7 +143,7 @@ func (self TerminalSockjs) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			//container,
 		}
 		if err := Handler(t, cmd); err != nil {
-			beego.Error(err)
+			beego.Error(444, err)
 			err := t.conn.Send(fmt.Sprintf("%s", err) + "\r\n")
 			if err != nil {
 				beego.Error(err)

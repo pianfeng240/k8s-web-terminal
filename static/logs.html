@@ -202,7 +202,8 @@
 
     const wsUrl = `${location.origin}/terminal/ws`
     const url = `${wsUrl}?namespace=${param.namespace}&pod=${param.pod}&container=${param.container}`
-    const cmd = `tail -f -n 10 ${param.paths} \n`
+    const tailCmd = `tail -f -n 10 ${param.paths}; \n`
+    const killCmd = "ps aux|grep pts|awk '{if($9!~/[0-9][0-9]:/)print $2}'|xargs kill -s 9 >/dev/null 2>&1;\n"
 
     let socket = new SockJS(url)
     socket.onopen = function () {
@@ -217,10 +218,10 @@
             term.fit()
             socket.send('{"cols":' + term.cols + ',"rows":' + term.rows + '}')
         }
-        window.onresize = debounce(resize, 100)
         resize()
         term.focus()
-        socket.send(cmd)
+        socket.send(killCmd)
+        socket.send(tailCmd)
 
         socket.onmessage = function (e) {
             if (window.DEBUG) {
@@ -240,16 +241,6 @@
         let r = window.location.search.substr(1).match(reg);
         if (r != null) return unescape(r[2]);
         return null;
-    }
-
-    function debounce (fn, delay) {
-        let timer = null
-        return function () {
-            if (timer !== null) {
-                clearTimeout(timer)
-            }
-            timer = setTimeout(fn, delay)
-        }
     }
 
     function search() {

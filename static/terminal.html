@@ -32,6 +32,7 @@
 
         const wsUrl = `${location.origin}/terminal/ws`
         const url = `${wsUrl}?namespace=${param.namespace}&pod=${param.pod}&container=${param.container}`
+        const killCmd = "ps aux|grep pts|awk '{if($9!~/[0-9][0-9]:/)print $2}'|xargs kill -s 9 >/dev/null 2>&1;\n"
 
         let socket = new SockJS(url)
 
@@ -43,6 +44,7 @@
             })
             term.open(document.getElementById('terminal'))
             term.setOption('fontSize', 14)
+            socket.send(killCmd)
 
             function resize() {
                 term.fit()
@@ -56,14 +58,15 @@
                 socket.send(data)
             })
             socket.onmessage = function (e) {
+                if (e.data.indexOf('ps aux') === 0) return
                 term.write(e.data)
             }
             socket.onclose = function () {
                 console.log('close')
             }
 
-            window.onbeforeunload = function () {
-                console.log('window close')
+            window.onbeforeunload = function (e) {
+                socket.send('exit;')
                 socket.close()
             }
 
