@@ -176,7 +176,7 @@
         paths: getUrlParam('paths'),
         container: '' // todo
     }
-    document.title = `${param.pod}@${param.namespace}`
+    document.title = `LOG-${param.pod}@${param.namespace}`
 
     var logEl = document.getElementById('log')
 
@@ -198,7 +198,6 @@
         dom: document.getElementById('log'),
         maxLines: getUrlParam('maxLines') || 1000
     })
-
 
     const wsUrl = `${location.origin}/terminal/ws`
     const url = `${wsUrl}?namespace=${param.namespace}&pod=${param.pod}&container=${param.container}`
