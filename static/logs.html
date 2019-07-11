@@ -43,18 +43,21 @@
 </head>
 <body>
 <div class="navbar navbar-default navbar-fixed-top navbar-inverse">
-    <div class="container">
-        <form class="navbar-form navbar-left" role="search">
+    <div  style="margin: 15px">
+        <!-- <form class="navbar-form navbar-left" role="search">
             <div class="form-group">
-                <input type="text" id="input_search" class="form-control" placeholder="Search">
+                <input type="text" id="terminal" placeholder="filter" onkeypress="search()">
+                <input type="text" id="input_search" placeholder="Search" onkeypress="enterEvent();">
             </div>
             <button type="button" onclick="search()" class="btn btn-default">过滤</button>
-        </form>
+        </form> -->
+        <input type="text" id="input_search" placeholder="Search" onkeypress="enterEvent();">
+        <button type="button" onclick="search()" class="btn btn-default">过滤</button>
     </div>
 </div>
 <div id="terminal"></div>
 <div>
-    <input type="text" placeholder="filter" onkeypress="search()">
+    <!-- <input type="text" placeholder="filter" onkeypress="search()"> -->
 </div>
 <div id="log"></div>
 <script>
@@ -229,9 +232,17 @@
 
     function search() {
         let text = document.getElementById('input_search').value
+        console.log('search',text)
         log.filterValue = text
         log.search()
     }
+
+    function enterEvent() {
+        if (event.keyCode === 13) {
+            this.search();
+        }
+    }
+
 </script>
 </body>
 </html>
