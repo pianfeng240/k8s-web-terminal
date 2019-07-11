@@ -24,6 +24,7 @@
         #log {
             font-size: .85em;
             margin-top: 3em;
+            padding-bottom: 20px;
         }
         .line {
             color: #333
@@ -62,10 +63,12 @@
 <div id="log"></div>
 <script>
     class Logger {
-        constructor({dom}) {
+        constructor({dom, maxLines}) {
             this.dom = dom
             this.linebuf = ''
             this._search = ''
+            this.maxLines = maxLines
+            this.lines = 0
         }
 
         get filterValue() {
@@ -114,7 +117,8 @@
                 let inner = document.createElement('p')
                 inner.classList.add('inner-line')
                 inner.innerHTML = data
-                this.dom.lastChild('line').appendChild(inner)
+                this.dom.lastChild.appendChild(inner)
+                this.scrollBottom()
                 return
             }
 
@@ -126,6 +130,26 @@
             line.appendChild(inner)
             this.filterElement(line)
             this.dom.appendChild(line)
+            this.lines += 1
+            this.removeOldestLine()
+            this.scrollBottom()
+        }
+
+        removeOldestLine() {
+            if (!this.maxLines) return
+            if (this.lines <= this.maxLines) return
+
+            const oldest = this.dom.firstChild
+            this.dom.removeChild(oldest)
+            this.lines -= 1
+        }
+
+        scrollBottom() {
+            const factor = 1.5
+            // 滚动到距内容底部一定距离时触发自动下滑
+            if (document.body.scrollHeight - document.documentElement.scrollTop < factor * document.documentElement.clientHeight) {
+                document.documentElement.scrollTop = document.body.scrollTop = document.body.scrollHeight
+            }
         }
 
         search() {
@@ -155,7 +179,7 @@
         paths: getUrlParam('paths'),
         container: '' // todo
     }
-    document.title = `${param.pod}@${param.namespace}`
+    document.title = `LOG-${param.pod}@${param.namespace}`
 
     var logEl = document.getElementById('log')
 
@@ -173,14 +197,15 @@
         lineDom.className = lineDom.className === 'line' ? 'line-selected' : 'line'
     }, true)
 
-    var log = new Logger({
-        dom: document.getElementById('log')
+    const log = new Logger({
+        dom: document.getElementById('log'),
+        maxLines: getUrlParam('maxLines') || 1000
     })
-
 
     const wsUrl = `${location.origin}/terminal/ws`
     const url = `${wsUrl}?namespace=${param.namespace}&pod=${param.pod}&container=${param.container}`
-    const cmd = `tail -f -n 10 ${param.paths} \n`
+    const tailCmd = `tail -f -n 10 ${param.paths}; \n`
+    const killCmd = "ps aux|grep pts|awk '{if($9!~/[0-9][0-9]:/)print $2}'|xargs kill -s 9 >/dev/null 2>&1;\n"
 
     let socket = new SockJS(url)
     socket.onopen = function () {
@@ -195,10 +220,10 @@
             term.fit()
             socket.send('{"cols":' + term.cols + ',"rows":' + term.rows + '}')
         }
-        window.onresize = debounce(resize, 100)
         resize()
         term.focus()
-        socket.send(cmd)
+        socket.send(killCmd)
+        socket.send(tailCmd)
 
         socket.onmessage = function (e) {
             if (window.DEBUG) {
@@ -218,16 +243,6 @@
         let r = window.location.search.substr(1).match(reg);
         if (r != null) return unescape(r[2]);
         return null;
-    }
-
-    function debounce (fn, delay) {
-        let timer = null
-        return function () {
-            if (timer !== null) {
-                clearTimeout(timer)
-            }
-            timer = setTimeout(fn, delay)
-        }
     }
 
     function search() {
